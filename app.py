@@ -29,10 +29,10 @@ def is_auth(message):
 def start_command(message):
     bot.clear_step_handler_by_chat_id(message.chat.id)
     text = (
-        "Welcome To Text TO CSV & VCF BOT\n\n"
+        "Welcome To Text TO CSV BOT\n\n"
         "Commands:\n"
         "/start - Start The Bot\n"
-        "/Txt_To_CSV - Convert TXT File to CSV & VCF\n"
+        "/Txt_To_CSV - Convert TXT File to CSV\n"
         "/CSV_To_TXT - Convert CSV File To TXT\n"
         "/reset - Stop Current Process\n\n"
         "Created By @Flame9906"
@@ -59,7 +59,7 @@ def add_user(message):
             bot.reply_to(message, "Send command like this: /add_user 123456789")
 
 # ==========================================
-#             TXT TO CSV & VCF FLOW
+#             TXT TO CSV FLOW
 # ==========================================
 @bot.message_handler(commands=['Txt_To_CSV'])
 def txt_to_csv_start(message):
@@ -143,32 +143,15 @@ def ask_csv_filename(message):
     if file_name.lower().endswith('.csv'):
         file_name = file_name[:-4]
         
-    user_data[message.chat.id]['csv_filename'] = file_name
-    
-    # Ab VCF file name puchenge
-    msg = bot.send_message(message.chat.id, "Send Name For Your VCF File (without .vcf):")
-    bot.register_next_step_handler(msg, ask_vcf_filename)
+    generate_csv(message.chat.id, file_name)
 
-def ask_vcf_filename(message):
-    if message.text == '/reset': return reset_command(message)
-    if message.chat.id not in user_data:
-        bot.send_message(message.chat.id, "Session expired. Please use /Txt_To_CSV again.")
-        return
-
-    vcf_name = message.text.strip()
-    if vcf_name.lower().endswith('.vcf'):
-        vcf_name = vcf_name[:-4]
-        
-    generate_csv_and_vcf(message.chat.id, vcf_name)
-
-def generate_csv_and_vcf(chat_id, vcf_name):
+def generate_csv(chat_id, file_name):
     data = user_data.get(chat_id)
     if not data:
         bot.send_message(chat_id, "Process interrupted. Please start again with /Txt_To_CSV")
         return
 
-    csv_file = f"{data['csv_filename']}.csv"
-    vcf_file = f"{vcf_name}.vcf"
+    csv_file = f"{file_name}.csv"
 
     try:
         raw_numbers = data['raw_numbers']
@@ -186,38 +169,22 @@ def generate_csv_and_vcf(chat_id, vcf_name):
             contact_name = f"{prefix} {start_idx + i}"
             processed_contacts.append((contact_name, c_code, num))
 
-        # 1. Generate CSV File
+        # Generate CSV File
         with open(csv_file, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(['Name', 'CountryCode', 'Phone'])
             for contact_name, code, num in processed_contacts:
                 writer.writerow([contact_name, code, num])
 
-        # 2. Generate VCF File
-        with open(vcf_file, 'w', encoding='utf-8') as f:
-            for contact_name, code, num in processed_contacts:
-                full_num = f"+{code}{num}"
-                f.write("BEGIN:VCARD\n")
-                f.write("VERSION:3.0\n")
-                f.write(f"FN:{contact_name}\n")
-                f.write(f"TEL;TYPE=CELL:{full_num}\n")
-                f.write("END:VCARD\n")
-
         # Send CSV
         with open(csv_file, 'rb') as f:
-            bot.send_document(chat_id, f, caption="Here is your CSV file.")
-
-        # Send VCF
-        with open(vcf_file, 'rb') as f:
-            bot.send_document(chat_id, f, caption="Here is your VCF file.\n\nReady! Send /Txt_To_CSV for new file.")
+            bot.send_document(chat_id, f, caption="Here is your CSV file.\n\nReady! Send /Txt_To_CSV for new file.")
 
     except Exception as e:
-        bot.send_message(chat_id, f"Error generating files: {e}")
+        bot.send_message(chat_id, f"Error generating file: {e}")
     finally:
         if os.path.exists(csv_file):
             os.remove(csv_file)
-        if os.path.exists(vcf_file):
-            os.remove(vcf_file)
         if chat_id in user_data:
             del user_data[chat_id]
 
@@ -315,12 +282,12 @@ def generate_txt(chat_id, file_name):
 @bot.message_handler(content_types=['document'])
 def handle_unhandled_document(message):
     if is_auth(message):
-        bot.send_message(message.chat.id, "Please select an option first:\n\n/Txt_To_CSV - Convert TXT to CSV & VCF\n/CSV_To_TXT - Convert CSV to TXT")
+        bot.send_message(message.chat.id, "Please select an option first:\n\n/Txt_To_CSV - Convert TXT to CSV\n/CSV_To_TXT - Convert CSV to TXT")
 
 @bot.message_handler(func=lambda message: True)
 def handle_unhandled_text(message):
     if is_auth(message):
-        bot.send_message(message.chat.id, "Please choose a command:\n\n/Txt_To_CSV - TXT to CSV & VCF\n/CSV_To_TXT - CSV to TXT\n/reset - Reset Process")
+        bot.send_message(message.chat.id, "Please choose a command:\n\n/Txt_To_CSV - TXT to CSV\n/CSV_To_TXT - CSV to TXT\n/reset - Reset Process")
 
 def run_bot():
     try:
