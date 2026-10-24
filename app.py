@@ -90,31 +90,12 @@ def process_txt_file(message):
             return
             
         user_data[message.chat.id] = {'raw_numbers': numbers}
-        msg = bot.send_message(message.chat.id, f"{len(numbers)} Contacts Found In Your File.\n\nSend Me Name For Your Contacts (Example: Koria 1)")
-        bot.register_next_step_handler(msg, process_contact_name)
+        
+        # Name poochne ki jagah ab seedha Country Code puchenge
+        msg = bot.send_message(message.chat.id, f"{len(numbers)} Contacts Found In Your File.\n\nSend Country Code (Example: 82 or 91):")
+        bot.register_next_step_handler(msg, process_country_code)
     except Exception as e:
         bot.send_message(message.chat.id, f"Error processing file: {e}")
-
-def process_contact_name(message):
-    if message.text == '/reset': return reset_command(message)
-    if message.chat.id not in user_data:
-        bot.send_message(message.chat.id, "Session expired. Please use /Txt_To_CSV again.")
-        return
-
-    raw_name = message.text.strip()
-    match = re.match(r'^(.*?)(?:\s+(\d+))?$', raw_name)
-    if match:
-        prefix = match.group(1).strip()
-        start_index = int(match.group(2)) if match.group(2) else 1
-    else:
-        prefix = raw_name
-        start_index = 1
-        
-    user_data[message.chat.id].update({'prefix': prefix, 'index': start_index})
-    
-    # Ab Country Code puchenge
-    msg = bot.send_message(message.chat.id, "Send Country Code (Example: 82 or 91):")
-    bot.register_next_step_handler(msg, process_country_code)
 
 def process_country_code(message):
     if message.text == '/reset': return reset_command(message)
@@ -155,18 +136,17 @@ def generate_csv(chat_id, file_name):
 
     try:
         raw_numbers = data['raw_numbers']
-        prefix = data['prefix']
-        start_idx = data['index']
         c_code = data['country_code']
 
-        # Process numbers: strip country code from front if present
         processed_contacts = []
-        for i, raw_num in enumerate(raw_numbers):
+        for raw_num in raw_numbers:
             num = raw_num
+            # Agar number ke aage pehle se country code hai toh use hata lo
             if num.startswith(c_code):
                 num = num[len(c_code):]
             
-            contact_name = f"{prefix} {start_idx + i}"
+            # Name column format: +CountryCode Number
+            contact_name = f"+{c_code}{num}"
             processed_contacts.append((contact_name, c_code, num))
 
         # Generate CSV File
